@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Music2, Headphones } from "lucide-react";
 import GradientBackground from "@/components/GradientBackground";
-import MoodInput from "@/components/MoodInput";
+import MoodInput, { ImageData } from "@/components/MoodInput";
 import PlaylistCard from "@/components/PlaylistCard";
 import { toast } from "sonner";
 
@@ -24,18 +24,20 @@ const Index = () => {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [tracks, setTracks] = useState<Track[]>([]);
 
-  const handleSubmit = async (text: string) => {
+  const handleSubmit = async (text: string, imageData?: ImageData) => {
     setIsLoading(true);
-    setSubmittedMood(text);
+    setSubmittedMood(text || "Análise de imagem");
     setShowPlaylist(false);
 
     // Basic frontend decoration for the background
     const lower = text.toLowerCase();
-    if (lower.includes("energia") || lower.includes("vibrante") || lower.includes("festa")) {
+    if (imageData && !text) {
+      setMood("dream");
+    } else if (text.toLowerCase().includes("energia") || text.toLowerCase().includes("vibrante") || text.toLowerCase().includes("festa")) {
       setMood("warm");
-    } else if (lower.includes("chuva") || lower.includes("calmo") || lower.includes("biblioteca")) {
+    } else if (text.toLowerCase().includes("chuva") || text.toLowerCase().includes("calmo") || text.toLowerCase().includes("biblioteca")) {
       setMood("cool");
-    } else if (lower.includes("nostalgia") || lower.includes("sonho") || lower.includes("verão")) {
+    } else if (text.toLowerCase().includes("nostalgia") || text.toLowerCase().includes("sonho") || text.toLowerCase().includes("verão")) {
       setMood("dream");
     } else {
       setMood("warm");
@@ -48,10 +50,27 @@ const Index = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt: text })
+        body: JSON.stringify({ prompt: text, imageData })
       });
 
-      if (!aiResponse.ok) throw new Error("Falha ao interpretar seu mood.");
+      if (!aiResponse.ok) {
+        let details = `Falha ao interpretar seu mood. (HTTP ${aiResponse.status})`;
+        try {
+          const errorPayload = await aiResponse.json();
+          details = errorPayload?.error || errorPayload?.details || details;
+        } catch {
+          try {
+            const textPayload = await aiResponse.text();
+            if (textPayload) details = textPayload;
+          } catch {
+            // Keep default message when no body is returned
+          }
+        }
+        const aiError = new Error(details) as Error & { status?: number; source?: string };
+        aiError.status = aiResponse.status;
+        aiError.source = 'ai';
+        throw aiError;
+      }
       
       const aiData = await aiResponse.json();
 
@@ -78,6 +97,21 @@ const Index = () => {
 
     } catch (error: any) {
       console.error(error);
+
+      if (error?.source === 'ai') {
+        if (error?.status === 429) {
+          toast.error("Ops! Muitos curadores musicais acessando agora.", {
+            description: "Aguarde 1 minuto e tente novamente.",
+          });
+          return;
+        }
+
+        toast.error("Erro na comunicação com a IA", {
+          description: "Tente novamente em instantes.",
+        });
+        return;
+      }
+
       toast.error("Ops! Algo deu errado", {
         description: error.message || "Tente novamente mais tarde.",
       });
@@ -105,7 +139,7 @@ const Index = () => {
             Como funciona
           </button>
           <button className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-body">
-            Conectar Spotify
+            Conectar YouTube Music
           </button>
         </nav>
       </header>
@@ -210,7 +244,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="px-6 py-4 text-center">
         <p className="text-xs text-muted-foreground font-body">
-          VisionBeat · Powered by IA + Spotify
+          VisionBeat · Powered by IA + YouTube Music
         </p>
       </footer>
     </div>

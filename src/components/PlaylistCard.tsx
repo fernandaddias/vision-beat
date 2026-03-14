@@ -32,7 +32,7 @@ const PlaylistCard = ({ tracks, mood }: PlaylistCardProps) => {
             </div>
             <button className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors">
               <ExternalLink className="h-4 w-4" />
-              Abrir no Spotify
+              Abrir no YouTube Music
             </button>
           </div>
         </div>

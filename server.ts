@@ -10,7 +10,8 @@ const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Initialize Gemini client
 const apiKey = process.env.GEMINI_API_KEY || '';
@@ -56,48 +57,185 @@ function localMoodInterpreter(prompt: string) {
   };
 }
 
+type MoodResult = {
+  search_query: string;
+  target_energy: number;
+  suggested_genres: string[];
+};
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const IMAGE_SEARCH_PROMPT = 'Analise esta imagem e me retorne apenas uma string de busca perfeita (ex: relaxing rainy acoustic guitar) para eu pesquisar no YouTube Music e encontrar musicas que combinem com a vibe desta foto.';
+const TEXT_SEARCH_PROMPT = 'Receba o mood/descricao do usuario e retorne apenas uma string de busca curta e eficaz para YouTube Music, sem explicacoes e sem pontuacao extra.';
+
+function normalizeSearchQuery(text: string): string {
+  return text
+    .replace(/```/g, '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/^"|"$/g, '')
+    .trim();
+}
+
+function normalizeImagePayload(imageData: any): { base64: string; mimeType: string } | null {
+  const stripDataUri = (value: string): { base64: string; mimeType: string | null } => {
+    const trimmed = value.trim();
+    const match = trimmed.match(/^data:(.+?);base64,(.+)$/i);
+
+    if (match) {
+      return { base64: match[2], mimeType: match[1] };
+    }
+
+    return { base64: trimmed, mimeType: null };
+  };
+
+  if (!imageData) return null;
+
+  if (typeof imageData === 'string') {
+    const parsed = stripDataUri(imageData);
+    return { base64: parsed.base64, mimeType: parsed.mimeType || 'image/jpeg' };
+  }
+
+  if (imageData?.base64 && imageData?.mimeType) {
+    const parsed = stripDataUri(imageData.base64);
+    return { base64: parsed.base64, mimeType: parsed.mimeType || imageData.mimeType };
+  }
+
+  if (imageData?.buffer && Array.isArray(imageData.buffer)) {
+    return {
+      base64: Buffer.from(imageData.buffer).toString('base64'),
+      mimeType: imageData?.mimeType || 'image/jpeg',
+    };
+  }
+
+  return null;
+}
+
+async function interpretImageMood(image: { base64: string; mimeType: string }, promptText: string): Promise<MoodResult> {
+  const model = genAI.getGenerativeModel({
+    // In @google/generative-ai, the SDK expects the model id directly (without "models/").
+    model: GEMINI_MODEL,
+    generationConfig: {
+      temperature: 0.3,
+    },
+  });
+
+  const imagePrompt = promptText
+    ? `${IMAGE_SEARCH_PROMPT} Contexto adicional do usuario: ${promptText}`
+    : IMAGE_SEARCH_PROMPT;
+
+  const response = await model.generateContent([
+    { text: imagePrompt },
+    {
+      inlineData: {
+        data: image.base64,
+        mimeType: image.mimeType,
+      },
+    },
+  ]);
+
+  const rawText = response.response.text() || '';
+  const searchQuery = normalizeSearchQuery(rawText);
+
+  if (!searchQuery) {
+    throw new Error('Gemini returned an empty search query for image mood interpretation.');
+  }
+
+  return {
+    search_query: searchQuery,
+    target_energy: 0.5,
+    suggested_genres: ['image-vibe'],
+  };
+}
+
+async function interpretTextMood(promptText: string): Promise<MoodResult> {
+  const model = genAI.getGenerativeModel({
+    model: GEMINI_MODEL,
+    generationConfig: {
+      temperature: 0.3,
+    },
+  });
+
+  const response = await model.generateContent([
+    { text: TEXT_SEARCH_PROMPT },
+    { text: `Mood do usuario: ${promptText}` },
+  ]);
+
+  const rawText = response.response.text() || '';
+  const searchQuery = normalizeSearchQuery(rawText);
+
+  if (!searchQuery) {
+    throw new Error('Gemini returned an empty search query for text mood interpretation.');
+  }
+
+  return {
+    search_query: searchQuery,
+    target_energy: 0.5,
+    suggested_genres: ['text-vibe'],
+  };
+}
+
 /**
  * Route: POST /api/interpret-mood
  * Interprets a user's prompt into a musical mood query and saves the history.
  */
 app.post('/api/interpret-mood', async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, imageData } = req.body;
+    const promptText = typeof prompt === 'string' ? prompt.trim() : '';
+    const normalizedImage = normalizeImagePayload(imageData);
     console.log('--- New Mood Request ---');
-    console.log('Prompt:', prompt);
+    console.log('Prompt:', promptText);
+    console.log('Has image:', !!normalizedImage);
 
-    if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ error: 'A valid text prompt is required.' });
+    // Require either a text prompt or an image
+    if (!promptText && !normalizedImage) {
+      return res.status(400).json({ error: 'A text prompt or an image is required.' });
     }
 
-    let result: { search_query: string; target_energy: number; suggested_genres: string[] };
+    let result: MoodResult;
 
-    // Try Gemini first, fall back to local interpreter
-    try {
-      if (!process.env.GEMINI_API_KEY) throw new Error('No API key');
-
-      console.log('Calling Gemini...');
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash",
-        systemInstruction: 'You are an expert music curator. Return exactly a strict JSON object with: "search_query" (a concise string optimized to search for tracks on Spotify), "target_energy" (a float from 0.0 to 1.0 representing the musical intensity), and "suggested_genres" (an array of exactly 3 highly relevant musical genres). Output ONLY the JSON string without code blocks or extra text.',
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        error: 'Erro na comunicacao com a IA',
+        details: 'GEMINI_API_KEY ausente',
       });
-
-      const resultResponse = await model.generateContent(`Mood/Scenario: ${prompt}`);
-      const aiResponseText = resultResponse.response.text();
-      console.log('Gemini Response:', aiResponseText);
-
-      const cleanJsonText = aiResponseText.replace(/```json/gi, '').replace(/```/gi, '').trim();
-      result = JSON.parse(cleanJsonText);
-    } catch (aiError: any) {
-      console.warn('Gemini unavailable, using local fallback:', aiError.message?.substring(0, 80));
-      result = localMoodInterpreter(prompt);
-      console.log('Local fallback result:', result);
     }
+
+    console.log(`Calling Gemini model: ${GEMINI_MODEL}`);
+
+    try {
+      result = normalizedImage
+        ? await interpretImageMood(normalizedImage, promptText)
+        : await interpretTextMood(promptText);
+    } catch (aiError: any) {
+      const message = aiError?.message || 'Falha desconhecida ao chamar Gemini';
+      console.error('Gemini Error:', message);
+
+      if (message.includes('400') || message.toLowerCase().includes('unable to process input image')) {
+        return res.status(400).json({
+          error: 'Imagem invalida para analise da IA',
+          details: message,
+        });
+      }
+
+      if (message.includes('429') || message.toLowerCase().includes('too many requests') || message.toLowerCase().includes('quota')) {
+        return res.status(429).json({
+          error: 'Ops! Muitos curadores musicais acessando agora. Aguarde 1 minuto e tente novamente.',
+          details: message,
+        });
+      }
+
+      return res.status(500).json({
+        error: 'Erro na comunicacao com a IA',
+        details: message,
+      });
+    }
+
+    console.log('Gemini Result:', result);
 
     // Save generation to the Neon Postgres database
     try {
       await createGeneration({
-        user_input: prompt,
+        user_input: promptText || '[image-only request]',
         ai_keywords: [...result.suggested_genres, result.search_query],
         music_url: null,
       });
@@ -162,6 +300,18 @@ app.post('/api/fetch-music', async (req, res) => {
     console.error('API Error (/api/fetch-music):', error);
     res.status(500).json({ error: 'Internal Server Error fetching YouTube Music tracks.' });
   }
+});
+
+// Friendly error for oversized request bodies
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: 'Imagem muito grande para envio. Tente uma imagem menor.',
+      details: 'Payload Too Large',
+    });
+  }
+
+  next(err);
 });
 
 // Start the Express server
