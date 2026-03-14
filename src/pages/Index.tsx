@@ -4,29 +4,32 @@ import { Music2, Headphones } from "lucide-react";
 import GradientBackground from "@/components/GradientBackground";
 import MoodInput from "@/components/MoodInput";
 import PlaylistCard from "@/components/PlaylistCard";
+import { toast } from "sonner";
 
 type Mood = "warm" | "cool" | "dream" | "neutral";
 
-const mockTracks = [
-  { id: "1", title: "Chet Baker Sings", artist: "Chet Baker", album: "Chet Baker Sings", cover: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&h=100&fit=crop", duration: "3:42" },
-  { id: "2", title: "Blue in Green", artist: "Miles Davis", album: "Kind of Blue", cover: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop", duration: "5:27" },
-  { id: "3", title: "Gymnopédie No.1", artist: "Erik Satie", album: "Gymnopédies", cover: "https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=100&h=100&fit=crop", duration: "3:05" },
-  { id: "4", title: "Moon River", artist: "Frank Sinatra", album: "Moonlight Sinatra", cover: "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=100&h=100&fit=crop", duration: "3:34" },
-  { id: "5", title: "Rainy Night in Georgia", artist: "Brook Benton", album: "Today", cover: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=100&h=100&fit=crop", duration: "4:15" },
-  { id: "6", title: "Clair de Lune", artist: "Debussy", album: "Suite bergamasque", cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=100&h=100&fit=crop", duration: "5:00" },
-];
+type Track = {
+  id: string;
+  title: string;
+  artist: string;
+  album_art?: string;
+  preview_url?: string;
+  music_url?: string;
+};
 
 const Index = () => {
   const [mood, setMood] = useState<Mood>("neutral");
   const [isLoading, setIsLoading] = useState(false);
   const [submittedMood, setSubmittedMood] = useState<string | null>(null);
   const [showPlaylist, setShowPlaylist] = useState(false);
+  const [tracks, setTracks] = useState<Track[]>([]);
 
-  const handleSubmit = (text: string) => {
+  const handleSubmit = async (text: string) => {
     setIsLoading(true);
     setSubmittedMood(text);
+    setShowPlaylist(false);
 
-    // Simulate mood detection
+    // Basic frontend decoration for the background
     const lower = text.toLowerCase();
     if (lower.includes("energia") || lower.includes("vibrante") || lower.includes("festa")) {
       setMood("warm");
@@ -38,10 +41,49 @@ const Index = () => {
       setMood("warm");
     }
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // 1. Interpret Mood -> AI
+      const aiResponse = await fetch('/api/interpret-mood', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prompt: text })
+      });
+
+      if (!aiResponse.ok) throw new Error("Falha ao interpretar seu mood.");
+      
+      const aiData = await aiResponse.json();
+
+      // 2. Fetch from Music Service (YouTube Music) using AI output
+      const musicResponse = await fetch('/api/fetch-music', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(aiData)
+      });
+
+      if (!musicResponse.ok) throw new Error("Falha ao buscar músicas.");
+
+      const tracksData: Track[] = await musicResponse.json();
+      
+      if (!tracksData || tracksData.length === 0) {
+        toast.error("Nenhuma música encontrada", { description: "Tente um mood diferente!" });
+        return;
+      }
+
+      setTracks(tracksData);
       setShowPlaylist(true);
-    }, 2000);
+
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Ops! Algo deu errado", {
+        description: error.message || "Tente novamente mais tarde.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -161,7 +203,7 @@ const Index = () => {
         )}
 
         {showPlaylist && submittedMood && (
-          <PlaylistCard tracks={mockTracks} mood={submittedMood} />
+          <PlaylistCard tracks={tracks} mood={submittedMood} />
         )}
       </main>
 

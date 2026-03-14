@@ -5,9 +5,9 @@ interface Track {
   id: string;
   title: string;
   artist: string;
-  album: string;
-  cover: string;
-  duration: string;
+  album_art?: string;
+  preview_url?: string;
+  music_url?: string;
 }
 
 interface PlaylistCardProps {
@@ -51,25 +51,39 @@ const PlaylistCard = ({ tracks, mood }: PlaylistCardProps) => {
               </span>
               <div className="relative h-12 w-12 rounded-lg overflow-hidden flex-shrink-0 bg-secondary">
                 <img
-                  src={track.cover}
-                  alt={track.album}
+                  src={track.album_art || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&h=100&fit=crop"}
+                  alt={track.title}
                   className="h-full w-full object-cover"
                 />
-                <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Play className="h-5 w-5 text-foreground fill-foreground" />
+                {track.preview_url && (
+                  <a href={track.preview_url} target="_blank" rel="noopener noreferrer">
+                    <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="h-5 w-5 text-foreground fill-foreground" />
+                    </div>
+                  </a>
+                )}
+              </div>
+              <div className="flex-1 min-w-0 flex items-center justify-between pr-4">
+                <div>
+                  <p className="text-sm font-medium text-foreground truncate font-body">
+                    {track.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate font-body">
+                    {track.artist}
+                  </p>
                 </div>
+                {track.music_url && (
+                  <a
+                    href={track.music_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 hover:bg-secondary rounded-full transition-colors text-muted-foreground hover:text-primary"
+                    title="Ouvir no YouTube Music"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate font-body">
-                  {track.title}
-                </p>
-                <p className="text-xs text-muted-foreground truncate font-body">
-                  {track.artist} · {track.album}
-                </p>
-              </div>
-              <span className="text-xs text-muted-foreground font-body">
-                {track.duration}
-              </span>
             </motion.div>
           ))}
         </div>
