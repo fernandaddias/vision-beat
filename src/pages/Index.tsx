@@ -127,28 +127,28 @@ const Index = () => {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-primary/20 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-2xl bg-[#2A1808] flex items-center justify-center">
             <svg
               viewBox="0 0 24 24"
-              className="h-5 w-5 text-primary"
+              className="h-5 w-5 text-[#FF980F]"
               aria-hidden="true"
               fill="none"
             >
               <path
-                d="M4 17.5C4 12.25 7.75 8 12 8C16.25 8 20 12.25 20 17.5"
+                d="M6.8 15a5.2 5.2 0 0 1 10.4 0"
                 stroke="currentColor"
-                strokeWidth="1.9"
+                strokeWidth="2"
                 strokeLinecap="round"
               />
-              <rect x="4" y="15" width="3.2" height="5" rx="1.2" fill="currentColor" />
-              <rect x="16.8" y="15" width="3.2" height="5" rx="1.2" fill="currentColor" />
+              <path d="M8.9 10.9l1 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path d="M15.1 10.9l-1 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               <path
-                d="M9.1 11.4L12 14.2L14.9 11.4"
+                d="M12 15l2.1-2.5"
                 stroke="currentColor"
-                strokeWidth="1.9"
+                strokeWidth="2"
                 strokeLinecap="round"
-                strokeLinejoin="round"
               />
+              <circle cx="12" cy="15" r="1" fill="currentColor" />
             </svg>
           </div>
           <span className="font-display font-bold text-lg text-foreground tracking-tight">

@@ -1,13 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="VisionBeat icon">
-  <defs>
-    <linearGradient id="vbGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#5B8CFF" />
-      <stop offset="100%" stop-color="#22D3EE" />
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="16" fill="#0B1020" />
-  <path d="M12 43c0-12 8.6-22 20-22s20 10 20 22" fill="none" stroke="url(#vbGrad)" stroke-width="5" stroke-linecap="round" />
-  <rect x="12" y="36" width="8" height="14" rx="3" fill="url(#vbGrad)" />
-  <rect x="44" y="36" width="8" height="14" rx="3" fill="url(#vbGrad)" />
-  <path d="M26 28l6 6 6-6" fill="none" stroke="#E6F1FF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <rect width="64" height="64" rx="16" fill="#2A1808" />
+  <g fill="none" stroke="#FF980F" stroke-linecap="round">
+    <path d="M18 39a14 14 0 0 1 28 0" stroke-width="5" />
+    <path d="M24 28l3 3" stroke-width="4" />
+    <path d="M40 28l-3 3" stroke-width="4" />
+    <path d="M32 39l6-7" stroke-width="5" />
+  </g>
+  <circle cx="32" cy="39" r="3" fill="#FF980F" />
 </svg>
