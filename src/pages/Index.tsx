@@ -135,25 +135,20 @@ const Index = () => {
               fill="none"
             >
               <path
-                d="M6.5 15a5.5 5.5 0 0 1 11 0"
+                d="M6 14.5a6 6 0 0 1 12 0"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
               />
               <path
-                d="M9.8 10.9L12 12.9L14.2 10.9"
+                d="M9.8 10.6L12 12.6L14.2 10.6"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              <path
-                d="M12 15l2.3-2.8"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <circle cx="12" cy="15" r="1" fill="currentColor" />
+              <rect x="5" y="14" width="2.9" height="4.6" rx="1.3" fill="currentColor" />
+              <rect x="16.1" y="14" width="2.9" height="4.6" rx="1.3" fill="currentColor" />
             </svg>
           </div>
           <span className="font-display font-bold text-lg text-foreground tracking-tight">
