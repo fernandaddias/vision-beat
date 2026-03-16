@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Initialize Gemini client
 const apiKey = process.env.GEMINI_API_KEY || '';
 console.log(`Gemini API Key loaded: ${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING!'}`);
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 /**
  * Local fallback mood interpreter when Gemini is unavailable
@@ -110,6 +110,10 @@ function normalizeImagePayload(imageData: any): { base64: string; mimeType: stri
 }
 
 async function interpretImageMood(image: { base64: string; mimeType: string }, promptText: string): Promise<MoodResult> {
+  if (!genAI) {
+    throw new Error('GEMINI_API_KEY ausente');
+  }
+
   const model = genAI.getGenerativeModel({
     // In @google/generative-ai, the SDK expects the model id directly (without "models/").
     model: GEMINI_MODEL,
@@ -147,6 +151,10 @@ async function interpretImageMood(image: { base64: string; mimeType: string }, p
 }
 
 async function interpretTextMood(promptText: string): Promise<MoodResult> {
+  if (!genAI) {
+    throw new Error('GEMINI_API_KEY ausente');
+  }
+
   const model = genAI.getGenerativeModel({
     model: GEMINI_MODEL,
     generationConfig: {
@@ -194,40 +202,48 @@ app.post('/api/interpret-mood', async (req, res) => {
     let result: MoodResult;
 
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: 'Erro na comunicacao com a IA',
-        details: 'GEMINI_API_KEY ausente',
-      });
-    }
+      console.warn('Gemini indisponivel: GEMINI_API_KEY ausente. Usando fallback local.');
+      result = localMoodInterpreter(promptText || 'image vibe instrumental chill');
+    } else {
+      console.log(`Calling Gemini model: ${GEMINI_MODEL}`);
 
-    console.log(`Calling Gemini model: ${GEMINI_MODEL}`);
+      try {
+        result = normalizedImage
+          ? await interpretImageMood(normalizedImage, promptText)
+          : await interpretTextMood(promptText);
+      } catch (aiError: any) {
+        const message = aiError?.message || 'Falha desconhecida ao chamar Gemini';
+        console.error('Gemini Error:', message);
 
-    try {
-      result = normalizedImage
-        ? await interpretImageMood(normalizedImage, promptText)
-        : await interpretTextMood(promptText);
-    } catch (aiError: any) {
-      const message = aiError?.message || 'Falha desconhecida ao chamar Gemini';
-      console.error('Gemini Error:', message);
+        if (message.includes('400') || message.toLowerCase().includes('unable to process input image')) {
+          return res.status(400).json({
+            error: 'Imagem invalida para analise da IA',
+            details: message,
+          });
+        }
 
-      if (message.includes('400') || message.toLowerCase().includes('unable to process input image')) {
-        return res.status(400).json({
-          error: 'Imagem invalida para analise da IA',
-          details: message,
-        });
+        if (message.includes('429') || message.toLowerCase().includes('too many requests') || message.toLowerCase().includes('quota')) {
+          return res.status(429).json({
+            error: 'Ops! Muitos curadores musicais acessando agora. Aguarde 1 minuto e tente novamente.',
+            details: message,
+          });
+        }
+
+        const messageLower = message.toLowerCase();
+        const isForbidden = message.includes('403') || messageLower.includes('forbidden');
+        const isLeakedKey = messageLower.includes('api key was reported as leaked');
+        const isAuthIssue = messageLower.includes('api key') || messageLower.includes('permission denied');
+
+        if (isForbidden || isLeakedKey || isAuthIssue) {
+          console.warn('Gemini com problema de autenticacao/chave. Usando fallback local.');
+          result = localMoodInterpreter(promptText || 'image vibe instrumental chill');
+        } else {
+          return res.status(500).json({
+            error: 'Erro na comunicacao com a IA',
+            details: message,
+          });
+        }
       }
-
-      if (message.includes('429') || message.toLowerCase().includes('too many requests') || message.toLowerCase().includes('quota')) {
-        return res.status(429).json({
-          error: 'Ops! Muitos curadores musicais acessando agora. Aguarde 1 minuto e tente novamente.',
-          details: message,
-        });
-      }
-
-      return res.status(500).json({
-        error: 'Erro na comunicacao com a IA',
-        details: message,
-      });
     }
 
     console.log('Gemini Result:', result);
