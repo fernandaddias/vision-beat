@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="VisionBeat icon">
+  <rect width="64" height="64" rx="16" fill="#2A1808" />
+  <g fill="none" stroke="#FF980F" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 38a15 15 0 0 1 30 0" stroke-width="5" />
+    <path d="M26 28l6 5 6-5" stroke-width="4" />
+  </g>
+  <rect x="14" y="37" width="8" height="14" rx="3.5" fill="#FF980F" />
+  <rect x="42" y="37" width="8" height="14" rx="3.5" fill="#FF980F" />
+</svg>

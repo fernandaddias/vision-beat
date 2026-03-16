@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Music2, Headphones } from "lucide-react";
+import { Music2 } from "lucide-react";
 import GradientBackground from "@/components/GradientBackground";
 import MoodInput, { ImageData } from "@/components/MoodInput";
 import PlaylistCard from "@/components/PlaylistCard";
@@ -127,8 +127,29 @@ const Index = () => {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-primary/20 flex items-center justify-center">
-            <Headphones className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-2xl bg-[#2A1808] flex items-center justify-center">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5 text-[#FF980F]"
+              aria-hidden="true"
+              fill="none"
+            >
+              <path
+                d="M6 14.5a6 6 0 0 1 12 0"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <path
+                d="M9.8 10.6L12 12.6L14.2 10.6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <rect x="5" y="14" width="2.9" height="4.6" rx="1.3" fill="currentColor" />
+              <rect x="16.1" y="14" width="2.9" height="4.6" rx="1.3" fill="currentColor" />
+            </svg>
           </div>
           <span className="font-display font-bold text-lg text-foreground tracking-tight">
             VisionBeat
